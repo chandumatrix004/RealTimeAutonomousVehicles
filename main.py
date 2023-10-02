@@ -1,58 +1,55 @@
 import numpy as np
 import datetime
 import cv2
-
 from ultralytics import YOLO
-
 from helper import create_video_writer
-from collections import deque
 
 from deep_sort.deep_sort.tracker import Tracker
 from deep_sort.deep_sort import nn_matching
 from deep_sort.deep_sort.detection import Detection
 from deep_sort.tools import generate_detections as gdet
 
-# define some parameters
+# Defining some parameters e.g., Setting prediction confidence threshold
 conf_threshold = 0.5
 max_cosine_distance = 0.4
 nn_budget = None
 
-# Initialize the video capture and the video writer objects
+# Initializing the video capture & the video writer objects for frame extraction & video write back
 video_cap = cv2.VideoCapture("street3.mp4")
 
 writer = create_video_writer(video_cap, "output.mp4")
-# Initialize the YOLOv8 model using the default weights
+# We 're initializing the YOLO V8 model using the default weights
 model = YOLO("yolov8n.pt")
 
-# Initialize the deep sort tracker
+# Here we're initializing the deep sort tracker
 model_filename = "config/mars-small128.pb"
 encoder = gdet.create_box_encoder(model_filename, batch_size=1)
 metric = nn_matching.NearestNeighborDistanceMetric(
     "cosine", max_cosine_distance, nn_budget)
 tracker = Tracker(metric)
 
-# load the COCO class labels the YOLO model was trained on
+# Here we're loading the COCO class labels separately on which the YOLO model was trained on
 classes_path = "config/coco.names"
 with open(classes_path, "r") as f:
     class_names = f.read().strip().split("\n")
 
-# create a list of random colors to represent each class
+# Now Creating a list of random colors to represent each class extracted above
 np.random.seed(42)  # to get the same colors
 colors = np.random.randint(0, 255, size=(len(class_names), 3))  # (80, 3)
 
 counter = 0
 while True:
-    # starter time to compute the fps
+    # We're starting time to compute the FPS (Frames Per Second)
     start = datetime.datetime.now()
     ret, frame = video_cap.read()
-    # if there is no frame, we have reached the end of the video
+    # If there is no frame, it means we have reached the end of the video
     if not ret:
         print("End of the video file...")
         break
     ############################################################
     ### Detect the objects in the frame using the YOLO model ###
     ############################################################
-    results = model(frame)
+    results = model(frame, stream=True)
 
     # loop over the results
     for result in results:
@@ -121,7 +118,6 @@ while True:
                       (x1 + len(text) * 12, y1), (B, G, R), -1)
         cv2.putText(frame, text, (x1 + 5, y1 - 8),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-
 
     ############################################################
     ### Some post-processing to display the results          ###
